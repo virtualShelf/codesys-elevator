@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Elevator Console</title>
+<!-- デザインは web/DESIGN.md（Obsidian Precision）に従う -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="bar">
+      <div class="bar__title">
+        <span class="tag">PRG_Elevator · MODBUS TCP</span>
+        <h1 class="bar__main">エレベータ操作盤</h1>
+      </div>
+      <div class="live" id="linkBadge">
+        <span class="live__dot" id="linkLamp"></span>
+        <span class="live__text" id="linkText">接続中…</span>
+      </div>
+    </header>
+
+    <section class="telemetry" aria-label="計測値">
+      <div class="card metric">
+        <span class="metric__label">POSITION · 位置</span>
+        <span class="metric__value"><span id="telePos">–</span><small>F</small></span>
+      </div>
+      <div class="card metric">
+        <span class="metric__label">DOOR · 扉</span>
+        <span class="metric__value"><span id="teleDoor">–</span><small>%</small></span>
+      </div>
+      <div class="card metric">
+        <span class="metric__label">LOAD · 積載率</span>
+        <span class="metric__value"><span id="teleLoad">–</span><small>%</small></span>
+      </div>
+      <div class="card metric">
+        <span class="metric__label">HEARTBEAT</span>
+        <span class="metric__value metric__value--mono" id="teleBeat">–</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <section class="card building" aria-label="昇降路と乗り場">
+        <div class="card__head">
+          <h2 class="card__title">昇降路</h2>
+          <span class="tag">HALL CALL</span>
+        </div>
+        <div class="building__body">
+          <div class="floors" id="floors"></div>
+          <div class="shaft" id="shaft">
+            <div class="car" id="car">
+              <div class="car__people" id="carPeople"></div>
+              <span class="door door--left" id="doorLeft"></span>
+              <span class="door door--right" id="doorRight"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="console">
+        <div class="card indicator" aria-live="polite">
+          <div class="indicator__arrows">
+            <span class="arrow" id="arrowUp">▲</span>
+            <span class="arrow" id="arrowDown">▼</span>
+          </div>
+          <div class="indicator__floor" id="floorDisplay">–</div>
+          <div class="indicator__state">
+            <span class="tag">STATE</span>
+            <span class="badge" id="stateText">–</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">かご内の操作盤</h2>
+            <span class="tag">CAR CALL</span>
+          </div>
+          <div class="cop" id="carButtons"></div>
+          <div class="door-buttons">
+            <button class="btn btn--secondary" id="openBtn" aria-label="扉を開く">
+              <span class="btn__icon">◀ ▶</span><span>開</span>
+            </button>
+            <button class="btn btn--secondary" id="closeBtn" aria-label="扉を閉じる">
+              <span class="btn__icon">▶ ◀</span><span>閉</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card" id="passengerPanel">
+          <div class="card__head">
+            <h2 class="card__title">乗っている人</h2>
+            <span class="tag">PASSENGERS</span>
+          </div>
+          <p class="card__hint" id="passengerHint">扉が開いているときに乗り降りできます</p>
+
+          <div class="field-row">
+            <label class="field">
+              <span class="field__label">人数</span>
+              <span class="stepper">
+                <button class="btn btn--secondary stepper__btn" id="personsMinus" aria-label="1人減らす">−</button>
+                <input class="input stepper__value" id="persons" type="number" min="0" max="99" value="0" />
+                <button class="btn btn--secondary stepper__btn" id="personsPlus" aria-label="1人増やす">＋</button>
+              </span>
+            </label>
+            <label class="field">
+              <span class="field__label">1人あたり</span>
+              <span class="unit-input">
+                <input class="input" id="perPerson" type="number" min="1" max="300" value="65" />
+                <span>kg</span>
+              </span>
+            </label>
+            <label class="field">
+              <span class="field__label">合計重量</span>
+              <span class="unit-input">
+                <input class="input" id="loadKg" type="number" min="0" max="9999" value="0" />
+                <span>kg</span>
+              </span>
+            </label>
+          </div>
+
+          <div class="quick">
+            <button class="btn btn--primary" id="boardOne">1人乗る</button>
+            <button class="btn btn--secondary" id="alightOne">1人降りる</button>
+            <button class="btn btn--ghost" id="alightAll">全員降りる</button>
+          </div>
+
+          <div class="gauge" aria-label="積載量">
+            <div class="gauge__track">
+              <div class="gauge__fill" id="gaugeFill"></div>
+              <div class="gauge__limit" title="定格"></div>
+            </div>
+            <div class="gauge__text">
+              <span id="loadText">0 / 600 kg</span>
+              <span id="personsText">0 / 9 人</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="alarm" id="alarm" role="alert">
+          <span class="alarm__dot"></span>
+          <span class="alarm__text">重量オーバーです。降りてください</span>
+          <label class="alarm__sound"><input type="checkbox" id="soundToggle" /> 音</label>
+        </div>
+
+        <p class="error" id="errorText"></p>
+      </section>
+    </div>
+  </main>
+  <script src="app.js" type="module"></script>
+</body>
+</html>

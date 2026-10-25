@@ -1,0 +1,400 @@
+/* エレベータ操作盤 — DESIGN.md（Obsidian Precision）に従う
+   ・色は下のトークンだけを使う。バイオレット・エメラルドは「状態を示す印」にだけ使い（シアンは異常・危険専用）、広い面には塗らない
+   ・数値は JetBrains Mono（tabular-nums）で、更新時に桁がぶれないようにする */
+:root {
+  /* 面（Tonal Layering） */
+  --canvas: #0a0b0e;
+  --surface-1: #11141a;
+  --surface-2: rgba(22, 27, 34, 0.65);
+  --surface-elevated: #1c222c;
+  --sheet-1: rgba(255, 255, 255, 0.03);
+  --sheet-2: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-faint: rgba(255, 255, 255, 0.04);
+  --border-active: rgba(124, 58, 237, 0.5);
+
+  /* 文字 */
+  --text: #e3e2e6;
+  --text-muted: #94a3b8;
+  --text-faint: #64748b;
+  --text-placeholder: #475569;
+
+  /* アクセントと状態 */
+  /* シアンは異常・危険の表示専用（通常の状態には使わない）。通常の「点灯・選択中」はバイオレット */
+  --danger-cyan: #00f0ff;
+  --accent: #7c3aed;
+  --accent-text: #d2bbff;
+  --accent-bloom: rgba(124, 58, 237, 0.55);
+  --accent-soft: rgba(124, 58, 237, 0.14);
+  --accent-line: rgba(124, 58, 237, 0.6);
+  --emerald: #00e599;
+  --emerald-soft: rgba(0, 229, 153, 0.12);
+  --emerald-line: rgba(0, 229, 153, 0.25);
+  --rose: #f43f5e;
+  --rose-soft: rgba(244, 63, 94, 0.12);
+  --rose-line: rgba(244, 63, 94, 0.25);
+  --amber: #f59e0b;
+  --amber-soft: rgba(245, 158, 11, 0.12);
+  --amber-line: rgba(245, 158, 11, 0.25);
+  --structural: #475569;
+
+  /* 形と間隔 */
+  --r-sm: 2px;
+  --r: 4px;
+  --r-lg: 8px;
+  --r-xl: 12px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --row: 76px;   /* 1階分の高さ（app.js が読む） */
+
+  /* 書体 */
+  --display: "Space Grotesk", "Noto Sans JP", system-ui, sans-serif;
+  --sans: "Inter", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(124, 58, 237, 0.06), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(124, 58, 237, 0.05), transparent 60%),
+    var(--canvas);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 20px;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-md);
+}
+
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--accent-text); border-color: var(--accent-text); }
+
+.app {
+  width: 100%;
+  max-width: 1040px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* ---- 共通部品 ---- */
+.tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.card {   /* Level 2: 分析カード */
+  position: relative;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: var(--space-md);
+}
+.card::before {   /* 上端の細いグラデーション線 */
+  content: "";
+  position: absolute; left: 0; right: 0; top: -1px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.45) 50%, transparent);
+  pointer-events: none;
+}
+.card__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm); margin-bottom: var(--space-md); }
+.card__title { margin: 0; font-family: var(--display); font-size: 18px; line-height: 26px; font-weight: 600; }
+.card__hint { margin: calc(var(--space-sm) * -1) 0 var(--space-md); font-size: 12px; line-height: 16px; color: var(--text-muted); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-sm);
+  min-height: 36px;
+  padding: 0 var(--space-md);
+  border-radius: var(--r);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease, color 150ms ease;
+}
+.btn--primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); font-weight: 600; }
+.btn--primary:hover:not(:disabled) { box-shadow: 0 0 16px var(--accent-bloom); }
+.btn--secondary { background: var(--sheet-2); color: #fff; border: 1px solid var(--border-strong); }
+.btn--secondary:hover:not(:disabled) { border-color: var(--accent-line); }
+.btn--ghost { background: none; border: 1px solid transparent; color: var(--text-muted); }
+.btn--ghost:hover:not(:disabled) { color: var(--accent-text); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn__icon { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--text-muted); }
+
+button:disabled, input:disabled { cursor: not-allowed; opacity: 0.4; }
+
+.input {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--r);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 11, 14, 0.8);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.input::placeholder { color: var(--text-placeholder); }
+
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--sheet-1);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.badge[data-tone="ok"] { background: var(--emerald-soft); border-color: var(--emerald-line); color: var(--emerald); }
+.badge[data-tone="active"] { background: var(--accent-soft); border-color: var(--border-active); color: var(--accent-text); }
+.badge[data-tone="attention"] { background: var(--amber-soft); border-color: var(--amber-line); color: var(--amber); }
+.badge[data-tone="alarm"] { background: var(--rose-soft); border-color: var(--rose-line); color: var(--rose); }
+
+/* ---- 上部バー ---- */
+.bar { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-md); }
+.bar__title { display: flex; flex-direction: column; gap: var(--space-xs); }
+.bar__main { margin: 0; font-family: var(--display); font-size: 32px; line-height: 40px; font-weight: 600; letter-spacing: -0.01em; }
+
+.live {   /* Live Status Badge */
+  display: inline-flex; align-items: center; gap: var(--space-sm);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--sheet-1);
+}
+.live__text { font-family: var(--mono); font-size: 12px; line-height: 16px; color: var(--text-muted); }
+.live__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--structural); }
+.live__dot.is-on { background: var(--emerald); box-shadow: 0 0 8px var(--emerald); animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.live__dot.is-alarm { background: var(--rose); box-shadow: 0 0 8px var(--rose); animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+/* ---- 計測値のカード ---- */
+.telemetry { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-md); }
+.metric { display: flex; flex-direction: column; gap: var(--space-xs); }
+.metric__label { font-family: var(--mono); font-size: 10px; line-height: 14px; font-weight: 500; letter-spacing: 0.05em; color: var(--text-muted); }
+.metric__value {
+  font-family: var(--display);
+  font-size: 24px; line-height: 32px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.metric__value small { margin-left: 2px; font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text-faint); }
+.metric__value.is-alarm { color: var(--rose); }
+.metric__value--mono { font-family: var(--mono); font-size: 20px; color: var(--text-muted); }
+
+/* ---- 全体のレイアウト ---- */
+.layout { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(320px, 1.1fr); gap: var(--space-lg); align-items: start; }
+.console { display: flex; flex-direction: column; gap: var(--space-md); }
+
+/* ---- 昇降路 ---- */
+.building__body { display: grid; grid-template-columns: 1fr 132px; gap: var(--space-md); }
+.floors { display: flex; flex-direction: column; }
+
+.floor-row {
+  height: var(--row);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+  border-bottom: 1px solid var(--border-faint);
+  padding-right: var(--space-xs);
+  transition: background 200ms ease;
+}
+.floor-row:first-child { border-top: 1px solid var(--border-faint); }
+.floor-row.is-here { background: linear-gradient(90deg, rgba(124, 58, 237, 0.10), transparent 70%); }
+
+.floor-row__label {
+  font-family: var(--display);
+  font-size: 24px; font-weight: 600;
+  width: 56px;
+  padding-left: var(--space-sm);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  transition: color 200ms ease;
+}
+.floor-row.is-here .floor-row__label { color: var(--text); }
+
+.hall-btn {
+  display: inline-flex; align-items: center; gap: var(--space-sm);
+  min-height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--border-strong);
+  background: var(--sheet-2);
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+.hall-btn:hover { border-color: var(--accent-line); }
+.hall-btn__lamp { width: 8px; height: 8px; border-radius: 50%; background: var(--structural); transition: background 150ms ease, box-shadow 150ms ease; }
+.hall-btn.is-lit { color: var(--accent-text); border-color: var(--border-active); }
+.hall-btn.is-lit .hall-btn__lamp { background: var(--accent-text); box-shadow: 0 0 10px var(--accent-bloom); }
+.hall-btn:active { transform: translateY(1px); }
+
+.shaft {
+  position: relative;
+  background:
+    repeating-linear-gradient(180deg, transparent 0, transparent calc(var(--row) - 1px), var(--border-faint) calc(var(--row) - 1px), var(--border-faint) var(--row)),
+    var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.shaft::before, .shaft::after {   /* ガイドレール */
+  content: "";
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.shaft::before { left: 10px; }
+.shaft::after { right: 10px; }
+
+.car {
+  position: absolute;
+  left: 16px; right: 16px; top: 0;
+  height: calc(var(--row) - 10px);
+  border-radius: var(--r);
+  /* 扉が開くと見える室内灯 */
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 244, 222, 0.30) 0%, rgba(255, 244, 222, 0.08) 45%, #0d1117 100%);
+  border: 1px solid var(--border-active);
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.15);
+  overflow: hidden;
+  transition: transform 110ms linear, border-color 200ms ease, box-shadow 200ms ease;
+  will-change: transform;
+}
+.car.is-alarm { border-color: var(--rose); box-shadow: 0 0 20px rgba(244, 63, 94, 0.45); }
+
+.car__people {
+  position: absolute; inset: 8px 8px 6px;
+  display: flex; flex-wrap: wrap; align-content: flex-end; justify-content: center; gap: 3px;
+}
+.person { width: 8px; height: 14px; border-radius: 4px 4px 1px 1px; background: var(--text); opacity: 0.8; }
+
+.door {
+  position: absolute; top: 0; bottom: 0; width: 50%;
+  background: linear-gradient(90deg, #161b22, #232b36 50%, #161b22);
+  transition: transform 110ms linear;
+}
+.door--left { left: 0; border-right: 1px solid rgba(255, 255, 255, 0.12); }
+.door--right { right: 0; border-left: 1px solid rgba(255, 255, 255, 0.12); }
+
+/* ---- 階表示 ---- */
+.indicator { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: var(--space-md); }
+.indicator__arrows { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.arrow { font-size: 18px; line-height: 1; color: #242a33; transition: color 150ms ease, text-shadow 150ms ease; }
+.arrow.is-lit { color: var(--accent-text); text-shadow: 0 0 12px var(--accent-bloom); }
+.indicator__floor {
+  font-family: var(--display);
+  font-size: 56px; line-height: 1; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.indicator__state { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-xs); }
+
+/* ---- かご内の操作盤 ---- */
+.cop { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: var(--space-sm); margin-bottom: var(--space-md); }
+.car-btn {
+  aspect-ratio: 1;
+  border-radius: var(--r);
+  border: 1px solid var(--border-strong);
+  background: var(--sheet-2);
+  font-family: var(--mono);
+  font-size: 18px; font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+.car-btn:hover { border-color: var(--accent-line); }
+.car-btn.is-lit { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 16px var(--accent-bloom); }
+.car-btn:active { transform: translateY(1px); }
+
+.door-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); }
+
+/* ---- 乗客 ---- */
+.field-row { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: var(--space-sm); margin-bottom: var(--space-md); }
+.field { display: flex; flex-direction: column; gap: var(--space-xs); }
+.field__label { font-size: 12px; line-height: 16px; color: var(--text-muted); }
+.stepper { display: grid; grid-template-columns: 36px 1fr 36px; gap: var(--space-xs); }
+.stepper__btn { padding: 0; font-family: var(--mono); font-size: 16px; }
+.stepper__value { text-align: center; }
+.unit-input { display: flex; align-items: center; gap: var(--space-xs); font-family: var(--mono); font-size: 12px; color: var(--text-faint); }
+
+.quick { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-md); }
+
+.gauge__track {
+  position: relative;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.gauge__fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, rgba(0, 229, 153, 0.35), var(--emerald));
+  border-radius: 9999px;
+  transition: width 200ms ease, background 200ms ease;
+}
+.gauge__fill.is-over { background: linear-gradient(90deg, rgba(244, 63, 94, 0.35), var(--rose)); }
+.gauge__limit {   /* 定格（バー全体は定格の 125% まで） */
+  position: absolute; top: 0; bottom: 0; left: 80%;
+  width: 1px; background: var(--text-muted);
+}
+.gauge__text {
+  display: flex; justify-content: space-between; margin-top: var(--space-sm);
+  font-family: var(--mono); font-size: 12px; line-height: 16px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.card.is-locked .field, .card.is-locked .quick { opacity: 0.5; }
+
+/* ---- 警報 ---- */
+.alarm {
+  display: none;
+  align-items: center; gap: var(--space-sm);
+  padding: 12px var(--space-md);
+  border-radius: var(--r-lg);
+  background: var(--rose-soft);
+  border: 1px solid var(--rose-line);
+  color: var(--rose);
+  font-weight: 500;
+}
+.alarm.is-on { display: flex; }
+.alarm__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--rose); box-shadow: 0 0 10px var(--rose); animation: pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.alarm__text { flex: 1; }
+.alarm__sound { display: flex; align-items: center; gap: var(--space-xs); font-size: 12px; font-weight: 400; color: var(--text-muted); }
+
+.error { margin: 0; min-height: 16px; font-family: var(--mono); font-size: 12px; line-height: 16px; color: var(--rose); }
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ---- タブレット・スマホ ---- */
+@media (max-width: 1279px) {
+  body { padding: var(--space-lg) var(--space-md); }
+}
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .telemetry { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 767px) {
+  .bar { flex-direction: column; align-items: flex-start; }
+  .bar__main { font-size: 24px; line-height: 32px; }
+  .field-row { grid-template-columns: 1fr 1fr; }
+  .field-row .field:first-child { grid-column: 1 / -1; }
+  .indicator__floor { font-size: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .car, .door, .gauge__fill { transition: none; }
+  .live__dot, .alarm__dot { animation: none; }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "codesys-elevator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "5階建てエレベータを CODESYS（ST）で制御し、Modbus TCP 経由で TypeScript の画面から操作・監視するサンプル",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "sim": "node src/sim.ts",
+    "ui": "node src/server.ts",
+    "test": "node --test tests/elevator_logic.test.ts"
+  }
+}
